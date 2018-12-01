@@ -1,6 +1,5 @@
 module Day01.Day01 where
 
-import           Data.Maybe (isNothing)
 import qualified Data.Set   as Set
 import           Prelude
 
