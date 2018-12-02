@@ -8,13 +8,13 @@ main = do
   input <- lines <$> readFile "input.txt"
   let actions  = parse input
       start    = 0
-      result1  = foldr ($) start actions
+      solution1  = foldr ($) start actions
 
-  putStrLn $ "Result pt 1 = " ++ show result1
+  putStrLn $ "Solution pt 1 = " ++ show solution1
 
-  let result2  = findFirstDuplicate start $ cycle actions
+  let solution2  = findFirstDuplicate start $ cycle actions
 
-  putStrLn $ "Result pt 2 = " ++ show result2
+  putStrLn $ "Solution pt 2 = " ++ show solution2
 
 type Action = Int -> Int
 
