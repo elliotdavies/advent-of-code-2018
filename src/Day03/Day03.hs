@@ -1,7 +1,7 @@
 module Day03.Day03 where
 
+import Data.Char (isDigit)
 import Data.List (find)
-import Data.List.Split (splitOn)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Prelude
@@ -21,23 +21,19 @@ getInput = (map parseClaim . lines) <$> readFile "input.txt"
 -- I really should learn to use a parser library
 parseClaim :: String -> Claim
 parseClaim s
-  = let ((_:id) : _ : leftTop : widthHeight : _) = splitOn " " s
-        (left : top': _) = splitOn "," leftTop
-        top = takeWhile (/= ':') top'
-        (width : height : _) = splitOn "x" widthHeight
-    in  Claim
-          (toInt id)
-          (mkCoords (toInt left) (toInt top) (toInt width) (toInt height))
+  = let [id, left, top, width, height] = map toInt . words $ map digitOrEmpty s
+    in  Claim id (mkCoords left top width height)
     where
       toInt :: String -> Int
       toInt = read
+
+      digitOrEmpty c = if isDigit c then c else ' '
 
       mkCoords :: Int -> Int -> Int -> Int -> [Coord]
       mkCoords left top width height
         = let xs = [left .. left + width - 1]
               ys = [top .. top + height - 1]
           in  [ (x,y) | x <- xs, y <- ys ]
-
 
 
 findConflicts :: [Claim] -> Map.Map Coord [Id]
