@@ -3,6 +3,7 @@ module Day03.Day03 where
 import Data.List (find)
 import Data.List.Split (splitOn)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Prelude
 
 
@@ -11,7 +12,6 @@ type Coord = (Int, Int)
 
 data Claim
   = Claim Id [Coord]
-  deriving (Show)
 
 
 getInput :: IO [Claim]
@@ -36,11 +36,12 @@ parseClaim s
       mkCoords left top width height
         = let xs = [left .. left + width - 1]
               ys = [top .. top + height - 1]
-          in  [ (x,y) | x <- xs, y <- ys]
+          in  [ (x,y) | x <- xs, y <- ys ]
 
 
-registerClaims :: [Claim] -> Map.Map Coord [Id]
-registerClaims = foldr go Map.empty
+
+findConflicts :: [Claim] -> Map.Map Coord [Id]
+findConflicts = Map.filter ((>1) . length) . foldr go Map.empty
   where
     go :: Claim -> Map.Map Coord [Id] -> Map.Map Coord [Id]
     go (Claim id coords) map
@@ -49,19 +50,14 @@ registerClaims = foldr go Map.empty
 
 solution1 :: IO ()
 solution1 = do
-  claims <- getInput
-  let conflicts = Map.filter ((>1) . length) (registerClaims claims)
+  conflicts <- findConflicts <$> getInput
   putStrLn $ "There are " <> show (Map.size conflicts) <> " squares with overlapping claims"
+
 
 solution2 :: IO ()
 solution2 = do
   claims <- getInput
-  let noConflicts = Map.filter ((==1) . length) (registerClaims claims)
-      candidates = Map.foldrWithKey (\k v acc -> Map.alter (Just . maybe [k] ((:) k)) v acc) Map.empty noConflicts
-      results = Map.filterWithKey (isMatch claims) candidates
-  putStrLn $ "These claims have no conflicts: " <> show (Map.keys results)
-  where
-    isMatch :: [Claim] -> [Id] -> [Coord] -> Bool
-    isMatch claims (k:_) v
-      = maybe False (const True)
-      $ find (\(Claim id cs) -> id == k && length v == length cs) claims
+  let allIds = map (\(Claim id _) -> id) claims
+      conflictingIds = concat . Map.elems $ findConflicts claims
+      result = Set.difference (Set.fromList allIds) (Set.fromList conflictingIds)
+  putStrLn $ "IDs with no conflicts: " <> show result
