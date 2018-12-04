@@ -1,80 +1,66 @@
-{-#LANGUAGE DerivingStrategies         #-}
 {-#LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Day04.Day04 where
 
+import           Data.List        (group, sort, sortOn)
+import qualified Data.Map  as     Map
+import           Prelude   hiding (id, min)
 
-import Data.List (group, sort, sortOn)
-import qualified Data.Map as Map
-import Prelude
 
 newtype Min = Min Int
-  deriving Show
-  deriving newtype (Eq, Ord)
+  deriving (Show, Eq, Ord)
 
 newtype Id = Id Int
-  deriving Show
-  deriving newtype (Eq, Ord)
+  deriving (Show, Eq, Ord)
 
 data Event
-  = Event EvType Id Min
-  deriving Show
-
-evType (Event ty _ _) = ty
-evId (Event _ id _) = id
-evMin (Event _ _ min) = min
-
-data EvType
-  = Start
-  | Wake
-  | Sleep
-  deriving Show
+  = Start Id
+  | Sleep Min
+  | Wake Min
 
 
-getInput :: IO [Event]
+-- Guard ID mapped to the minutes they're asleep
+type SleepMap = Map.Map Id [Min]
+
+
+getInput :: IO SleepMap
 getInput = do
   events <- sort . lines <$> readFile "input.txt"
-  -- This is 'OK' assuming the first event is always "Guard <id> begins shift"
-  pure . fst $ foldl go ([], undefined) events
+  let (Start initialId) = parse $ head events -- Assume we always start with a Start
+  pure . snd $ go (initialId, Map.empty) events
     where
-      go :: ([Event], Id) -> String -> ([Event], Id)
-      go (events, lastId) s
-        = let ev = parse s lastId
-          in  (events ++ [ev], evId ev)
-
-
-parse :: String -> Id -> Event
-parse s lastId
-  = let (ymd:hm:_:evStr:_) = words s
-        min = Min (read (take 2 $ drop 3 hm) :: Int)
-        (tag:idStr) = evStr
-        id = if tag == '#' then Id (read idStr :: Int) else lastId
-    in  case tag of
-          '#' -> Event Start id min
-          'u' -> Event Wake id min
-          'a' -> Event Sleep id min
-
-
-sumEvents :: [Event] -> Map.Map Id [Min]
-sumEvents = go Map.empty
-  where
-    go :: Map.Map Id [Min] -> [Event] -> Map.Map Id [Min]
+    go :: (Id, SleepMap) -> [String] -> (Id, SleepMap)
     go acc [] = acc
-    go acc (ev:ev':evs)
-      = case evType ev of
-          Start ->
-            go acc (ev':evs)
+    go (id, sleepMap) (s:s':ss)
+      = case parse s of
+          -- If we see a new guard starting a shift, change the current ID
+          Start newId -> 
+            go (newId, sleepMap) (s':ss)
 
-          Sleep ->
-            let (Min sleepMin) = evMin ev
-                (Min wakeMin) = evMin ev'
+          -- If a guard falls asleep, note the minute. Assume the next event will be
+          -- the guard waking up, and look ahead
+          Sleep (Min sleepMin) ->
+            let Wake (Min wakeMin) = parse s'
                 mins = Min <$> [sleepMin .. wakeMin - 1]
-                acc' = Map.alter (Just . maybe mins (++ mins)) (evId ev) acc
-            in  go acc' evs
+                sleepMap' = Map.alter (Just . maybe mins (++ mins)) id sleepMap
+            in  go (id, sleepMap') ss
 
-          Wake ->
+          -- Because the Sleep case looks ahead, this shouldn't happen
+          Wake _ ->
             error "This shouldn't happen if the data is consistent"
-          
+    
+
+-- I /still/ really need to learn to use a parsing library
+parse :: String -> Event
+parse s
+  = let (_:hourMin:_:event:_) = words s
+        min = Min (read (take 2 $ drop 3 hourMin) :: Int)
+        (tag:rest) = event
+    in  case tag of
+          '#' -> Start $ Id (read rest :: Int)
+          'u' -> Wake min
+          'a' -> Sleep min
+
 
 sleepiestMinute :: [Min] -> (Min, Int)
 sleepiestMinute mins
@@ -84,31 +70,31 @@ sleepiestMinute mins
 
 solution1 :: IO ()
 solution1 = do
-  tallies <- sumEvents <$> getInput
+  input <- getInput
   let (Id id, mins)
         = head
         . reverse
         . sortOn (length . snd)
-        $ Map.assocs tallies
+        $ Map.assocs input
       
-      (Min m, _) = sleepiestMinute mins
+      (Min min, _) = sleepiestMinute mins
   
   putStrLn $ "Sleepiest guard: " <> show id
-  putStrLn $ "Sleepiest minute: " <> show m
-  putStrLn $ "Solution: " <> show (m * id)
+  putStrLn $ "Sleepiest minute: " <> show min
+  putStrLn $ "Solution: " <> show (min * id)
 
 
 solution2 :: IO ()
 solution2 = do
-  tallies <- sumEvents <$> getInput
-  let (Id id, (Min m, count))
+  input <- getInput
+  let (Id id, (Min min, count))
         = head
         . reverse
         . sortOn (snd . snd)
         . Map.assocs
-        $ Map.map sleepiestMinute tallies
+        $ Map.map sleepiestMinute input
       
   putStrLn $ "Guard: " <> show id
-  putStrLn $ "Minute and count: " <> show m <> " " <> show count
-  putStrLn $ "Solution: " <> show (m * id)
+  putStrLn $ "Minute and count: " <> show min <> " " <> show count
+  putStrLn $ "Solution: " <> show (min * id)
 
