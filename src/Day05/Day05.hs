@@ -1,7 +1,7 @@
 module Day05.Day05 where
 
-import Data.Char (isLower, isUpper, toLower)
-import Data.List (nub, sort)
+import Data.Char (isUpper, toLower)
+import Data.List (nub)
 
 type Polymer = String
 
@@ -33,8 +33,7 @@ solution2 :: IO ()
 solution2 = do
   input <- getInput
   let shortest
-        = head
-        . sort
+        = minimum
         . map (length . crystalise . removeUnit input)
         . nub
         . filter isUpper
