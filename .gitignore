@@ -1,4 +1,4 @@
-.swp
+*.swp
 .stack-work/
 aoc2018.cabal
 *~
