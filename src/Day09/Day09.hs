@@ -2,66 +2,57 @@
 
 module Day09.Day09 where
 
-import           Data.List   (elemIndex, sort)
-import qualified Data.Map    as Map
-import           Data.Maybe  (fromMaybe)
+import qualified Data.List.PointedList.Circular as PL
+import           Data.List                      (foldl')
+import qualified Data.Map                       as Map
+import           Data.Maybe                     (fromJust)
 
 
-newtype Marble
-  = Marble Int
+newtype Marble = Marble { unMarble :: Int }
+  deriving (Show, Eq, Ord, Enum)
+
+newtype Id = Id Int
   deriving (Show, Eq, Ord)
 
-mVal (Marble m) = m
-mNext (Marble m) = Marble $ m + 1
-
-newtype Id
-  = Id Int
-  deriving (Show, Eq, Ord)
-
-newtype Score
-  = Score Int
-  deriving (Show, Num, Ord, Eq)
-
-mkScore (Marble m) = Score m
-unScore (Score s) = s
+newtype Score = Score { unScore :: Int }
+  deriving (Show, Eq, Ord, Num)
 
 data GameState
   = GameState
-      { _marbles    :: [Marble]
-      , _current    :: Marble
-      , _lastPlaced :: Marble
-      , _scores     :: Map.Map Id Score
-      }
-  deriving (Show)
+    { _marbles    :: PL.PointedList Marble
+    , _lastPlaced :: Marble
+    , _scores     :: Map.Map Id Score
+    }
+  deriving Show
+
+
+fromMarble (Marble m) = Score m
+
 
 placeMarble :: Id -> Marble -> GameState -> GameState
-placeMarble id m (GameState marbles current last scores)
-  = if mVal m `mod` 23 == 0 then placeMult23 else placeNormal
+placeMarble id m (GameState marbles last scores)
+  = if unMarble m `mod` 23 == 0 then placeMult23 else placeNormal
   where
     placeNormal
-      = let marbles' = insertClockwise 1 current m marbles
-        in GameState marbles' m m scores
+      = let marbles' = PL.insertRight m $ PL.moveN 1 marbles
+        in  GameState marbles' m scores
 
     placeMult23
-      = let (removed, marbles') = removeCounterClockwise 7 current marbles
-            score    = mkScore m + mkScore removed
-            scores'  = Map.alter (Just . maybe score (+ score)) id scores 
-            current' = findClockwise 0 removed marbles
-        in  GameState marbles' current' m scores'
+      = let marbles'  = PL.moveN (-7) marbles
+            removed   = PL._focus marbles'
+            score     = fromMarble m + fromMarble removed
+            scores'   = Map.insertWith (+) id score scores
+        in  GameState (fromJust $ PL.deleteRight marbles') m scores'
 
 
 playGame :: Int -> Marble -> GameState
 playGame numPlayers end
-  = go initGameState (cycle $ Id <$> [1..numPlayers])
+  = foldl' (\game (id,m) -> placeMarble id m game) initGame moves
   where
-    initGameState = GameState [Marble 0] (Marble 0) (Marble 0) Map.empty
+    initGame = GameState (PL.singleton $ Marble 0) (Marble 0) Map.empty
+    
+    moves = zip (cycle $ Id <$> [1 .. numPlayers]) [(Marble 1) .. end]
 
-    go :: GameState -> [Id] -> GameState
-    go state (p:ps)
-      = let m = _lastPlaced state
-        in  if m == end
-              then state
-              else go (placeMarble p (mNext m) state) ps
 
 highScore :: GameState -> Int
 highScore = maximum . map (unScore . snd) . Map.assocs . _scores
@@ -74,30 +65,9 @@ solution1 = do
   putStrLn $ "High score: " ++ show (highScore game)
 
 
-pos :: Marble -> [Marble] -> Int
-pos = (fromMaybe 0 .) . elemIndex
+solution2 :: IO ()
+solution2 = do
+  let game = playGame 439 (Marble 7130700)
+  putStrLn $ "Last marble: " ++ show (_lastPlaced game)
+  putStrLn $ "High score: " ++ show (highScore game)
 
-
-findClockwise :: Int -> Marble -> [Marble] -> Marble
-findClockwise n current marbles
-  = let idx = (pos current marbles + n + 1) `mod` length marbles
-    in  head . snd $ splitAt idx marbles
-
-insertClockwise :: Int -> Marble -> Marble -> [Marble] -> [Marble]
-insertClockwise n current new marbles
-  = let insertionIndex = (pos current marbles + n + 1) `mod` length marbles
-    in  insert new insertionIndex marbles
-  where
-    insert m i ms
-      = let (before, after) = splitAt i ms
-        in  before ++ [m] ++ after
-
-removeCounterClockwise :: Int -> Marble -> [Marble] -> (Marble, [Marble])
-removeCounterClockwise n current marbles
-  = let removalIndex = (pos current marbles - n) `mod` length marbles
-    in  remove removalIndex marbles
-  where
-    remove i ms
-      = let (before, after) = splitAt i ms
-            removed = head after
-        in  (removed, before ++ drop 1 after)
