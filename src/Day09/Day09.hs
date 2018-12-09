@@ -23,6 +23,7 @@ newtype Score
   deriving (Show, Num, Ord, Eq)
 
 mkScore (Marble m) = Score m
+unScore (Score s) = s
 
 data GameState
   = GameState
@@ -62,12 +63,15 @@ playGame numPlayers end
               then state
               else go (placeMarble p (mNext m) state) ps
 
+highScore :: GameState -> Int
+highScore = maximum . map (unScore . snd) . Map.assocs . _scores
+
+
 solution1 :: IO ()
 solution1 = do
   let game = playGame 439 (Marble 71307)
   putStrLn $ "Last marble: " ++ show (_lastPlaced game)
-  putStr "High score: "
-  putStrLn . show . head . reverse . sort . map snd . Map.assocs $ _scores game
+  putStrLn $ "High score: " ++ show (highScore game)
 
 
 pos :: Marble -> [Marble] -> Int
