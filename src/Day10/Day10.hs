@@ -7,9 +7,10 @@ import qualified Data.Set as Set
 
 type Coord    = (Int, Int)
 type Velocity = (Int, Int)
+type Point    = (Coord, Velocity)
 
 
-getInput :: IO [(Coord, Velocity)]
+getInput :: IO [Point]
 getInput = do
   map parse <$> (lines <$> readFile "input.txt")
   where
@@ -24,37 +25,40 @@ getInput = do
         readInt = read
 
 
-step :: [(Coord, Velocity)] -> ([(Coord, Velocity)], Int, Int, Int, Int)
+step :: [Point] -> ([Point], Int, Int, Int, Int)
 step = foldr go ([], 0, 0, 0, 0)
   where
-    go (cs, vs) (acc, minX, maxX, minY, maxY)
+    go (cs, vs) (ps, minX, maxX, minY, maxY)
       = let cs'@(x', y') = (fst cs + fst vs, snd cs + snd vs)
-        in ((cs', vs):acc, min minX x', max maxX x', min minY y', max maxY y')
+            ps' = (cs', vs) : ps
+        in (ps', min minX x', max maxX x', min minY y', max maxY y')
 
 
-run :: [(Coord, Velocity)] -> Int -> Int -> ([(Coord, Velocity)], Int)
+run :: [Point] -> Int -> Int -> ([Point], Int)
 run = go 0
   where
-    go secs xs xLen yLen
-      = let (xs', minX, maxX, minY, maxY) = step xs
+    go secs points xLen yLen
+      = let (points', minX, maxX, minY, maxY) = step points
             xLen' = maxX - minX
             yLen' = maxY - minY
-        in  if xLen' > xLen && yLen' > yLen then (xs, secs) else go (secs+1) xs' xLen' yLen'
+        in  if xLen' > xLen && yLen' > yLen
+              then (points, secs)
+              else go (secs + 1) points' xLen' yLen'
 
+
+extremes :: [Coord] -> (Int, Int, Int, Int)
+extremes cs
+  = let xs = map fst cs
+        ys = map snd cs
+    in  (minimum xs, maximum xs, minimum ys, maximum ys)
+  
 
 printGrid :: [Coord] -> IO ()
 printGrid cs = do
-  let xs = map fst cs
-      ys = map snd cs
-      minX = minimum xs
-      maxX = maximum xs
-      minY = minimum ys
-      maxY = maximum ys
-
-      set = Set.fromList cs
+  let (minX, maxX, minY, maxY) = extremes cs
   
   for_ [minY..maxY] $ \y -> do
-    for_ [minX..maxX] $ \x -> printLine x y set
+    for_ [minX..maxX] $ \x -> printLine x y (Set.fromList cs)
     putStrLn ""
 
   where
@@ -67,20 +71,15 @@ getResult :: IO ([Coord], Int)
 getResult = do
   input <- getInput
 
-  let cs = map fst input
-      xs = map fst cs
-      ys = map snd cs
-      minX = minimum xs
-      maxX = maximum xs
-      minY = minimum ys
-      maxY = maximum ys
+  let (minX, maxX, minY, maxY) = extremes $ map fst input
+      (points, t) = run input (maxX - minX) (maxY - minY)
 
-  let (csvs, t) = run input (maxX - minX) (maxY - minY)
-  pure (map fst csvs, t)
+  pure (map fst points, t)
 
 
 solution1 :: IO ()
 solution1 = getResult >>= printGrid . fst
+
 
 solution2 :: IO ()
 solution2 = getResult >>= putStrLn . show . snd
