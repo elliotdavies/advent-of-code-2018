@@ -1,64 +1,59 @@
 module Day11.Day11 where
 
-import Data.List (maximumBy)
+import           Data.Foldable (traverse_)
+import qualified Data.Vector   as V
 
 
-newtype Coord = Coord (Int, Int)
-  deriving (Show)
+input = 8772
+gridSize = 300
 
 
-data Res = Res Coord Int
-  deriving (Show)
-
-instance Eq Res where
-  (Res _ a) == (Res _ b) = a == b
-
-instance Ord Res where
-  (Res _ a) `compare` (Res _ b) = a `compare` b
-
-
-input :: Int
-input = 18
---input = 8772
-
-
-cellPower :: Coord -> Int
-cellPower (Coord (x,y))
+cellPower :: Int -> Int -> Int
+cellPower x y
   = let rackId = x + 10
     in  hundreds ((y * rackId + input) * rackId) - 5
+  where
+    hundreds i
+      = case drop 2 . take 3 . reverse . show $ i of
+          [] -> 0
+          x  -> read x :: Int
 
 
-hundreds :: Int -> Int
-hundreds i
-  = case drop 2 . take 3 . reverse . show $ i of
-      [] -> 0
-      x  -> read x :: Int
+grid :: V.Vector (V.Vector Int)
+grid = V.generate gridSize genXs
+  where
+    genXs i = V.generate gridSize (cellPower i)
 
 
-genGrid :: Int -> [Coord]
-genGrid size =
-  Coord <$> [(x,y) | x <- [0 .. size - 3], y <- [0 .. size - 3]]
+coords :: [(Int, Int)]
+coords = [(x,y) | x <- [1..gridSize], y <- [1..gridSize]]
 
 
-gridSquarePower :: Coord -> Res
-gridSquarePower (Coord (x,y))  
-  = let total = sum . map cellPower $
-             [ Coord (x,y), Coord (x+1,y), Coord (x+2,y)
-             , Coord (x,y+1), Coord (x+1,y+1), Coord (x+2,y+1)
-             , Coord (x,y+2), Coord (x+1,y+2), Coord (x+2,y+2)
-             ]
-    in  Res (Coord (x,y)) total
+findSquare :: Int -> ((Int, Int), Int)
+findSquare boxSize = foldr step ((0,0),0) coords
+  where
+    step (x,y) res
+      | x + boxSize > gridSize || y + boxSize > gridSize = res
+      | otherwise =
+          let total
+                = V.sum
+                . V.map (V.sum . V.slice x boxSize)
+                $ (V.slice y boxSize grid)
+          
+          in  if total > snd res then ((x,y), total) else res
 
 
 solution1 :: IO ()
-solution1 = do
-  let grid = genGrid 300
-      res  = maximum $ map gridSquarePower grid
-  putStrLn $ show res
+solution1 = putStrLn . show $ findSquare 3
 
 
+-- Have to eyeball this one...
 solution2 :: IO ()
 solution2 = do
-  let grids = map genGrid [3..300]
-      res   = maximum . map (maximum . map gridSquarePower) $ grids
-  putStrLn $ show res
+  traverse_ findSquare' [1..300]
+  where
+    findSquare' i = do
+      let r = findSquare i
+      putStrLn $ show (r, i)
+      pure r
+
