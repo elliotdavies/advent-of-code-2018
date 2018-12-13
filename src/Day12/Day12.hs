@@ -1,14 +1,9 @@
 module Day12.Day12 where
 
-import           Data.Char   (intToDigit)
 import qualified Data.Vector as V
 
 
 data Rule = String :=> Char
-  deriving (Show)
-
-
-data Pot = Pot Int Char
   deriving (Show)
 
 
@@ -19,29 +14,51 @@ parseRule s = let [a,_,b:_] = words s in a :=> b
 rules :: [Rule]
 rules
   = parseRule <$>
-    [ "...## => #"
-    , "..#.. => #"
-    , ".#... => #"
-    , ".#.#. => #"
-    , ".#.## => #"
-    , ".##.. => #"
-    , ".#### => #"
-    , "#.#.# => #"
-    , "#.### => #"
+    [ "..... => ."
+    , "#.... => ."
+    , "..### => ."
+    , "##..# => #"
+    , ".###. => #"
+    , "...## => ."
+    , "#.#.. => ."
+    , "..##. => ."
     , "##.#. => #"
-    , "##.## => #"
-    , "###.. => #"
-    , "###.# => #"
+    , "..#.. => ."
+    , ".#... => #"
+    , "##.## => ."
+    , "....# => ."
+    , ".#.#. => ."
+    , "#..#. => #"
+    , "#.### => ."
+    , ".##.# => #"
+    , ".#### => ."
+    , ".#..# => ."
     , "####. => #"
+    , "#...# => #"
+    , ".#.## => #"
+    , "#..## => ."
+    , "..#.# => #"
+    , "#.##. => ."
+    , "###.. => ."
+    , "##### => #"
+    , "###.# => #"
+    , "...#. => #"
+    , "#.#.# => #"
+    , ".##.. => ."
+    , "##... => #"
     ]
 
 
-initialState :: V.Vector Pot
+extraBefore = 5
+extraAfter = 25
+
+input = "#.......##.###.#.#..##..##..#.#.###..###..##.#.#..##....#####..##.#.....########....#....##.#..##"
+
 initialState
-  = V.imap Pot $ V.fromList "#..#.#..##......###...###..........."
+  = pad extraBefore V.++ V.fromList input V.++ pad extraAfter
 
 
-getWindow :: Int -> V.Vector Pot -> V.Vector Pot
+getWindow :: Int -> V.Vector Char -> V.Vector Char
 getWindow i v
   | i < 2
       = let diff = (2 - i)
@@ -56,17 +73,17 @@ getWindow i v
     start   = i - 2
     end     = i + 2
 
-    pad n = V.replicate n (Pot (-3) '.') -- TODO
+
+pad :: Int -> V.Vector Char
+pad n = V.replicate n '.'
 
 
 
-applyRules :: V.Vector Pot -> V.Vector Pot
+applyRules :: V.Vector Char -> V.Vector Char
 applyRules v
-  = V.imap (\i pot -> applyRule pot . windowToList $ getWindow i v) v
+  = V.imap (\i _ -> applyRule . V.toList $ getWindow i v) v
   where
-    windowToList = V.toList . V.map (\(Pot i c) -> c)
-
-    applyRule (Pot i c) window = Pot i $ foldr step c rules
+    applyRule window = foldr step '.' rules
       where
         step (r :=> res) c = if r == window then res else c
 
@@ -76,21 +93,24 @@ solution1 :: IO ()
 solution1 = do
   --let res = foldr go initialState [1..20]
 
-  putStrLn $ "   " ++ show (V.imap (\i _ -> intToDigit $ i `mod` 10) initialState)
-  putStrLn $ printPots 0 initialState
+  putStrLn $ fmt 0 ++ " " ++ show initialState
   
-  foldl go (pure initialState) [1..20]
-  
+  finalState <- foldl go (pure initialState) [1..20]
+  let total = V.sum $ V.imap (\i c -> if c == '#' then i - extraBefore else 0) finalState
+  putStrLn $ "Sum: " ++ show total
   pure mempty
 
   where
     go state i = do
       s <- state
       let s' = applyRules s
-      putStrLn $ printPots i s'
+      putStrLn $ fmt i ++ " " ++ show s'
       pure s'
-
-    printPots i ps = fmt i ++ " " ++ show (V.imap (\_ (Pot _ c) -> c) ps)
     
     fmt i = if i < 10 then " " ++ show i else show i
+
+
+
+
+
 
