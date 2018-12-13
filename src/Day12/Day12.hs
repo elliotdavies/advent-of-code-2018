@@ -14,24 +14,48 @@ parseRule s = let [a,_,b:_] = words s in a :=> b
 rules :: [Rule]
 rules
   = parseRule <$>
-    [ "...## => #"
-    , "..#.. => #"
-    , ".#... => #"
-    , ".#.#. => #"
-    , ".#.## => #"
-    , ".##.. => #"
-    , ".#### => #"
-    , "#.#.# => #"
-    , "#.### => #"
+    [ "..... => ."
+    , "#.... => ."
+    , "..### => ."
+    , "##..# => #"
+    , ".###. => #"
+    , "...## => ."
+    , "#.#.. => ."
+    , "..##. => ."
     , "##.#. => #"
-    , "##.## => #"
-    , "###.. => #"
-    , "###.# => #"
+    , "..#.. => ."
+    , ".#... => #"
+    , "##.## => ."
+    , "....# => ."
+    , ".#.#. => ."
+    , "#..#. => #"
+    , "#.### => ."
+    , ".##.# => #"
+    , ".#### => ."
+    , ".#..# => ."
     , "####. => #"
+    , "#...# => #"
+    , ".#.## => #"
+    , "#..## => ."
+    , "..#.# => #"
+    , "#.##. => ."
+    , "###.. => ."
+    , "##### => #"
+    , "###.# => #"
+    , "...#. => #"
+    , "#.#.# => #"
+    , ".##.. => ."
+    , "##... => #"
     ]
 
 
-initialState = V.fromList "#..#.#..##......###...###..........."
+extraBefore = 5
+extraAfter = 25
+
+input = "#.......##.###.#.#..##..##..#.#.###..###..##.#.#..##....#####..##.#.....########....#....##.#..##"
+
+initialState
+  = pad extraBefore V.++ V.fromList input V.++ pad extraAfter
 
 
 getWindow :: Int -> V.Vector Char -> V.Vector Char
@@ -49,7 +73,9 @@ getWindow i v
     start   = i - 2
     end     = i + 2
 
-    pad n = V.replicate n '.'
+
+pad :: Int -> V.Vector Char
+pad n = V.replicate n '.'
 
 
 
@@ -69,8 +95,9 @@ solution1 = do
 
   putStrLn $ fmt 0 ++ " " ++ show initialState
   
-  foldl go (pure initialState) [1..20]
-  
+  finalState <- foldl go (pure initialState) [1..20]
+  let total = V.sum $ V.imap (\i c -> if c == '#' then i - extraBefore else 0) finalState
+  putStrLn $ "Sum: " ++ show total
   pure mempty
 
   where
