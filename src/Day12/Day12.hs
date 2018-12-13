@@ -1,9 +1,14 @@
 module Day12.Day12 where
 
+import           Data.Char   (intToDigit)
 import qualified Data.Vector as V
 
 
 data Rule = String :=> Char
+  deriving (Show)
+
+
+data Pot = Pot Int Char
   deriving (Show)
 
 
@@ -31,10 +36,12 @@ rules
     ]
 
 
-initialState = V.fromList "#..#.#..##......###...###..........."
+initialState :: V.Vector Pot
+initialState
+  = V.imap Pot $ V.fromList "#..#.#..##......###...###..........."
 
 
-getWindow :: Int -> V.Vector Char -> V.Vector Char
+getWindow :: Int -> V.Vector Pot -> V.Vector Pot
 getWindow i v
   | i < 2
       = let diff = (2 - i)
@@ -49,15 +56,17 @@ getWindow i v
     start   = i - 2
     end     = i + 2
 
-    pad n = V.replicate n '.'
+    pad n = V.replicate n (Pot (-3) '.') -- TODO
 
 
 
-applyRules :: V.Vector Char -> V.Vector Char
+applyRules :: V.Vector Pot -> V.Vector Pot
 applyRules v
-  = V.imap (\i _ -> applyRule . V.toList $ getWindow i v) v
+  = V.imap (\i pot -> applyRule pot . windowToList $ getWindow i v) v
   where
-    applyRule window = foldr step '.' rules
+    windowToList = V.toList . V.map (\(Pot i c) -> c)
+
+    applyRule (Pot i c) window = Pot i $ foldr step c rules
       where
         step (r :=> res) c = if r == window then res else c
 
@@ -67,7 +76,8 @@ solution1 :: IO ()
 solution1 = do
   --let res = foldr go initialState [1..20]
 
-  putStrLn $ fmt 0 ++ " " ++ show initialState
+  putStrLn $ "   " ++ show (V.imap (\i _ -> intToDigit $ i `mod` 10) initialState)
+  putStrLn $ printPots 0 initialState
   
   foldl go (pure initialState) [1..20]
   
@@ -77,13 +87,10 @@ solution1 = do
     go state i = do
       s <- state
       let s' = applyRules s
-      putStrLn $ fmt i ++ " " ++ show s'
+      putStrLn $ printPots i s'
       pure s'
+
+    printPots i ps = fmt i ++ " " ++ show (V.imap (\_ (Pot _ c) -> c) ps)
     
     fmt i = if i < 10 then " " ++ show i else show i
-
-
-
-
-
 
