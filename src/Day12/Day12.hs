@@ -1,41 +1,14 @@
 module Day12.Day12 where
 
-
 import qualified Data.Vector as V
 
-{-
-class Queue q where
-  empty :: q a
-  push  :: a -> q a -> q a
-  pop   :: q a -> Maybe (a, q a)
-  peek  :: q a -> Maybe a
 
-newtype LIFO a = LIFO [a]
-
-instance Queue LIFO where
-  empty = LIFO []
-
-  push x (LIFO xs) = LIFO (x:xs)
-
-  pop (LIFO [])     = Nothing
-  pop (LIFO (x:xs)) = Just (x, LIFO xs)
-
-  peek (LIFO [])     = Nothing
-  peek (LIFO (x:xs)) = Just x
--}
-
------
-
-data Rule
-  = String :=> Char
+data Rule = String :=> Char
   deriving (Show)
 
 
 parseRule :: String -> Rule
 parseRule s = let [a,_,b:_] = words s in a :=> b
-
-
-initialState = V.fromList "#..##...."
 
 
 rules :: [Rule]
@@ -58,12 +31,59 @@ rules
     ]
 
 
--- Apply a rule to a list of 5 characters
-applyRule :: [Char] -> [Char]
-applyRule cs
-  = tryMatch rules
+initialState = V.fromList "#..#.#..##......###...###..........."
+
+
+getWindow :: Int -> V.Vector Char -> V.Vector Char
+getWindow i v
+  | i < 2
+      = let diff = (2 - i)
+        in  pad diff V.++ V.slice i (5 - diff) v
+  | end > lastIdx
+      = let diff = end - lastIdx
+        in  V.slice start (5 - diff) v V.++ pad diff 
+  | otherwise
+      = V.slice start 5 v
   where
-    tryMatch :: [Rule] -> [Char]
-    tryMatch [] = cs
-    tryMatch ((r :=> res) : rules)
-      = if r == cs then ".." ++ [res] ++ ".." else tryMatch rules
+    lastIdx = V.length v - 1
+    start   = i - 2
+    end     = i + 2
+
+    pad n = V.replicate n '.'
+
+
+
+applyRules :: V.Vector Char -> V.Vector Char
+applyRules v
+  = V.imap (\i _ -> applyRule . V.toList $ getWindow i v) v
+  where
+    applyRule window = foldr step '.' rules
+      where
+        step (r :=> res) c = if r == window then res else c
+
+
+
+solution1 :: IO ()
+solution1 = do
+  --let res = foldr go initialState [1..20]
+
+  putStrLn $ fmt 0 ++ " " ++ show initialState
+  
+  foldl go (pure initialState) [1..20]
+  
+  pure mempty
+
+  where
+    go state i = do
+      s <- state
+      let s' = applyRules s
+      putStrLn $ fmt i ++ " " ++ show s'
+      pure s'
+    
+    fmt i = if i < 10 then " " ++ show i else show i
+
+
+
+
+
+
