@@ -1,18 +1,44 @@
 module Day13.Day13 where
 
 import           Control.Arrow   (first, second)
-import           Data.List       (sort)
+import           Data.List       (sortBy)
 import           Data.List.Index (ifoldr)
 import qualified Data.Map        as Map
 import           Data.Maybe      (fromJust)
 
 
-type Pos = (Int, Int)
+newtype Pos = Pos (Int, Int)
+  deriving (Show, Eq, Ord)
 
-incX = first (+1)
-decX = first (subtract 1)
-incY = second (+1)
-decY = second (subtract 1)
+
+sortByPos :: [Cart] -> [Cart]
+sortByPos = sortBy comp
+  where
+    (Cart _ _ pos) `comp` (Cart _ _ pos') = pos `compare` pos'
+
+
+sortByGrid :: [Cart] -> [Cart]
+sortByGrid = sortBy comp
+  where
+    (Cart _ _ pos) `comp` (Cart _ _ pos') = gridSort pos pos'
+
+
+gridSort :: Pos -> Pos -> Ordering
+gridSort (Pos (x,y)) (Pos (x',y'))
+  = case y `compare` y' of
+      EQ -> x `compare` x'
+      GT -> GT
+      LT -> LT
+
+
+
+alterPos :: ((Int, Int) -> (Int, Int)) -> Pos -> Pos
+alterPos f (Pos p) = Pos $ f p
+
+incX = alterPos $ first (+1)
+decX = alterPos $ first (subtract 1)
+incY = alterPos $ second (+1)
+decY = alterPos $ second (subtract 1)
 
 
 data Direction
@@ -40,18 +66,19 @@ data Track
 
 
 type Tracks
-  = Map.Map (Int, Int) Track
+  = Map.Map Pos Track
 
 
 data Cart
-  = Cart Direction Turn (Int, Int)
+  = Cart Direction Turn Pos
   deriving (Show)
 
 instance Eq Cart where
-  (Cart _ _ a) == (Cart _ _ b) = a == b
+  (Cart _ _ pos) == (Cart _ _ pos') = pos == pos'
 
-instance Ord Cart where
-  (Cart _ _ a) `compare` (Cart _ _ b) = a `compare` b
+
+getPos :: Cart -> Pos
+getPos (Cart _ _ pos) = pos
 
 
 getInput :: IO (Tracks, [Cart])
@@ -74,19 +101,16 @@ getInput = do
           'v'  -> app D Vertical
           _    -> (tracks, carts)
       where
-        ins t = Map.insert (x,y) t tracks
-        app d t = (ins t, Cart d TLeft (x,y) : carts)
+        ins t = Map.insert (Pos (x,y)) t tracks
+        app d t = (ins t, Cart d TLeft (Pos (x,y)) : carts)
 
 
-step :: Tracks -> [Cart] -> [Cart]
-step tracks
-  = foldr step' []
+stepCart :: Tracks -> Cart -> Cart
+stepCart tracks (Cart d turn pos)
+  = let currentTrack = fromJust $ Map.lookup pos tracks
+        (d', turn', pos') = getNext currentTrack d turn pos
+    in  Cart d' turn' pos'
   where
-    step' (Cart d turn pos) acc
-      = let currentTrack = fromJust $ Map.lookup pos tracks
-            (d', turn', pos') = getNext currentTrack d turn pos
-        in  Cart d' turn' pos' : acc
-
     getNext track d turn pos
       = case (track, d) of
           (Vertical, U)     -> (U, turn, decY pos)
@@ -120,16 +144,16 @@ step tracks
           (TRight, L) -> (TLeft, U, decY pos)
 
 
-
-findCollisions :: [Cart] -> ([Pos], [Cart])
-findCollisions = go ([], []) . sort
+step :: Tracks -> [Cart] -> ([Pos], [Cart])
+step tracks =
+  foldl go ([], []) . sortByPos
   where
-    go res [] = res
-    go (ps, cs) [c] = (ps, c:cs)
-    go (ps, cs) (c:c':rest)
-      = if c == c'
-          then let Cart _ _ pos = c in go (pos:ps, cs) rest
-          else go (ps, c:cs) (c':rest)
+    go (colls, cs) c
+      = let c' = stepCart tracks c
+            pos = getPos c'
+        in  if pos `elem` map getPos cs
+              then (pos:colls, filter ((/= pos) . getPos) cs)
+              else (colls, c':cs)
 
 
 solution1 :: IO ()
@@ -139,22 +163,23 @@ solution1 = do
   putStrLn $ show findCollisionsPos
   where
   go ts cs
-    = let cs'     = step ts cs
-          (ps, _) = findCollisions cs'
-      in  if null ps
+    = let (colls, cs') = step ts cs
+      in  if null colls
             then go ts cs'
-            else head ps
+            else head colls
 
 
 solution2 :: IO ()
 solution2 = do
   (tracks, carts) <- getInput
-  let Cart _ _ pos = go tracks carts
-  putStrLn $ show pos
+  cart <- go tracks carts
+  putStrLn . show $ getPos cart
   where
     go ts cs
-      = let (ps, cs') = findCollisions $ step ts cs
-        in  if length cs' == 1
-              then head cs'
+      = let (colls, cs') = step ts cs
+        in do
+          putStrLn $ show cs'
+          if length cs' == 1
+              then pure $ head cs'
               else go ts cs'
 
