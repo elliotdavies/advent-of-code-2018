@@ -129,21 +129,27 @@ collision = go . sort
 
 
 
-run :: Tracks -> [Cart] -> (Int, Int)
-run tracks carts
-  = go carts
-  where
-    go cs
-      = let cs' = step tracks cs
-        in  case collision cs' of
-              Just pos -> pos
-              Nothing  -> go cs'
-
-
-
 solution1 :: IO ()
 solution1 = do
   (tracks, carts) <- getInput
   let collisionPos = run tracks carts
   putStrLn $ show collisionPos
+  where
+  go tracks carts
+    = let cs' = step tracks cs
+      in  case collision cs' of
+            Just pos -> pos
+            Nothing  -> go tracks cs'
 
+
+solution2 :: IO ()
+solution2 = do
+  (tracks, carts) <- getInput
+  let lastCartPos = go tracks carts
+  putStrLn $ show lastCartPos
+  where
+    go tracks carts
+      = let cs'  = step tracks cs
+        in  case collision cs' of
+              Just pos -> pos
+              Nothing  -> go tracks cs'
