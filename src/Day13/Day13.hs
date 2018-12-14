@@ -121,35 +121,40 @@ step tracks
 
 
 
-collision :: [Cart] -> Maybe (Int, Int)
-collision = go . sort
+findCollisions :: [Cart] -> ([Pos], [Cart])
+findCollisions = go ([], []) . sort
   where
-    go (x:y:xs) = if x == y then let Cart _ _ pos = x in Just pos else go (y:xs)
-    go _        = Nothing
-
+    go res [] = res
+    go (ps, cs) [c] = (ps, c:cs)
+    go (ps, cs) (c:c':rest)
+      = if c == c'
+          then let Cart _ _ pos = c in go (pos:ps, cs) rest
+          else go (ps, c:cs) (c':rest)
 
 
 solution1 :: IO ()
 solution1 = do
   (tracks, carts) <- getInput
-  let collisionPos = run tracks carts
-  putStrLn $ show collisionPos
+  let findCollisionsPos = go tracks carts
+  putStrLn $ show findCollisionsPos
   where
-  go tracks carts
-    = let cs' = step tracks cs
-      in  case collision cs' of
-            Just pos -> pos
-            Nothing  -> go tracks cs'
+  go ts cs
+    = let cs'     = step ts cs
+          (ps, _) = findCollisions cs'
+      in  if null ps
+            then go ts cs'
+            else head ps
 
 
 solution2 :: IO ()
 solution2 = do
   (tracks, carts) <- getInput
-  let lastCartPos = go tracks carts
-  putStrLn $ show lastCartPos
+  let Cart _ _ pos = go tracks carts
+  putStrLn $ show pos
   where
-    go tracks carts
-      = let cs'  = step tracks cs
-        in  case collision cs' of
-              Just pos -> pos
-              Nothing  -> go tracks cs'
+    go ts cs
+      = let (ps, cs') = findCollisions $ step ts cs
+        in  if length cs' == 1
+              then head cs'
+              else go ts cs'
+
