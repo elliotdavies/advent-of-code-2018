@@ -2,6 +2,7 @@ module Day13.Day13 where
 
 import           Control.Arrow   (first, second)
 import           Data.List.Index (ifoldr)
+import           Data.List.Index (ifoldr)
 import qualified Data.Map        as Map
 import           Data.Maybe      (fromJust)
 
@@ -49,19 +50,19 @@ getInput = do
 
     parseTrack y x c (tracks, carts)
       = case c of
-          '|'  -> ins Vertical
-          '-'  -> ins Horizontal
-          '\\' -> ins CurveBSlash
-          '/'  -> ins CurveFSlash
-          '+'  -> ins Intersection
-          '>'  -> app R
-          '<'  -> app L
-          '^'  -> app U
-          'v'  -> app D
+          '|'  -> (ins Vertical, carts)
+          '-'  -> (ins Horizontal, carts)
+          '\\' -> (ins CurveBSlash, carts)
+          '/'  -> (ins CurveFSlash, carts)
+          '+'  -> (ins Intersection, carts)
+          '>'  -> app R Horizontal
+          '<'  -> app L Horizontal
+          '^'  -> app U Vertical
+          'v'  -> app D Vertical
           _    -> (tracks, carts)
       where
-        ins t = (Map.insert (x,y) t tracks, carts)
-        app d = (tracks, Cart d (x,y) : carts)
+        ins t = Map.insert (x,y) t tracks
+        app d t = (ins t, Cart d (x,y) : carts)
 
 
 step :: Tracks -> [Cart] -> [Cart]
@@ -75,16 +76,25 @@ step tracks
 
     getNext t d pos
       = case (t, d) of
-          (Vertical, U) -> (U, decY pos)
-          (Vertical, D) -> (U, incY pos)
-          (Horizontal, L) -> (L, decX pos)
-          (Horizontal, R) -> (L, incX pos)
-          (CurveBSlash, R) -> (D, incY pos)
-          (CurveBSlash, U) -> (L, decX pos)
-          (CurveFSlash, L) -> (D, incY pos)
-          (CurveFSlash, U) -> (R, incX pos)
+          (Vertical, U)     -> (U, decY pos)
+          (Vertical, D)     -> (U, incY pos)
+          (Horizontal, L)   -> (L, decX pos)
+          (Horizontal, R)   -> (L, incX pos)
+          (CurveBSlash, R)  -> (D, incY pos)
+          (CurveBSlash, U)  -> (L, decX pos)
+          (CurveFSlash, L)  -> (D, incY pos)
+          (CurveFSlash, U)  -> (R, incX pos)
           (Intersection, _) -> (d, pos) -- TODO
-          _ -> (d, pos)
+          _                 -> (d, pos)
+
+
+
+collision :: [Cart] -> Bool
+collision = foldl matches False . sort
+  where
+    matches res []       = res
+    matches res [x]      = res
+    matches res (x:y:xs) = res && x == y
 
 
 solution1 :: IO ()
