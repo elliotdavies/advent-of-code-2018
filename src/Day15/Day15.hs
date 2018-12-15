@@ -1,14 +1,24 @@
 module Day15.Day15 where
 
 import Data.List.Index (ifoldl)
+import Data.List (sortOn)
 import qualified Data.Map as M
-import Data.Maybe (isNothing)
+import Data.Maybe (catMaybes, isNothing)
 import qualified Data.Set as S
 import qualified Data.Tree as T
 import Linear (V2(..))
 
 
-type Pos = V2 Int
+newtype Pos = Pos (V2 Int)
+  deriving (Show, Eq)
+
+instance Ord Pos where
+  Pos (V2 x y) `compare` Pos (V2 x' y')
+    = case y `compare` y' of
+        EQ -> x `compare` x'
+        GT -> GT
+        LT -> LT
+
 
 data UnitType
   = Elf
@@ -32,12 +42,18 @@ data Object
   | OUnit Unit
   deriving (Show)
 
+isUnit :: Object -> Bool
+isUnit (OUnit _) = True
+isUnit _         = False
+
+
 type Grid = M.Map Pos Object
 
 
 adjacentSquares :: Pos -> [Pos]
-adjacentSquares p
-  = [ p + V2 1 0
+adjacentSquares (Pos p)
+  = Pos <$>
+    [ p + V2 1 0
     , p - V2 1 0
     , p + V2 0 1
     , p - V2 0 1
@@ -78,10 +94,23 @@ foldTree (T.Node pos children)
 
 findPaths :: Grid -> Pos -> Pos -> [Route]
 findPaths g s d
-  = filter endsAtDest $ foldTree $ buildPathTree g s d
+  = map stripHead $ filter endsAtDest $ foldTree $ buildPathTree g s d
   where
     endsAtDest :: Route -> Bool
     endsAtDest r = not (null r) && last r == d
+
+    stripHead :: Route -> Route
+    stripHead (r:rs) = rs
+
+
+shortestRoute :: [Route] -> Maybe Route
+shortestRoute rs
+  = case sortOn length rs of
+      []  -> Nothing
+      [x] -> Just x
+      (x:y:_) -> Just $ if length x == length y then choose x y else x
+  where
+    choose x@(p1:_) y@(p2:_) = if p1 <= p2 then x else y
 
 
 parseLine :: String -> Int -> Grid
@@ -94,7 +123,7 @@ parseLine s y = ifoldl parse M.empty s
           'E' -> ins $ mkUnit Elf
           _   -> m
       where
-        ins unit = M.insert (V2 x y) unit m
+        ins unit = M.insert (Pos $ V2 x y) unit m
         mkUnit u = OUnit $ Unit u (AP 3) (HP 200)
 
 
@@ -106,3 +135,33 @@ parseInput = ifoldl parse M.empty . lines
 
 getInput :: IO Grid
 getInput = parseInput <$> readFile "test.txt"
+
+
+runRound :: Grid -> Grid
+runRound g
+  = let units = M.toAscList $ M.filter isUnit g
+    in  go g units
+  where
+    go g [] = g
+    go g (unit@(pos, (OUnit u)):units)
+      = let maybeTarget
+              = shortestRoute
+              $ catMaybes
+              $ map (shortestRoute . findPaths g pos)
+              $ M.keys
+              $ M.filter isUnit g
+
+        in case maybeTarget of
+            Nothing -> g
+            Just moveTarget ->
+              let (pos', g') = move g unit moveTarget
+                  adj = adjacentSquares g' pos'
+                  maybeAttackTarget = findAttackTarget u adj
+              in  case maybeAttackTarget of
+                    Nothing -> g'
+                    Just attackTarget ->
+
+
+move :: Grid -> (Pos, Object) -> Route -> Grid
+move g (pos, obj) (r:rs)
+  = (r,) $ M.insert r obj $ M.delete pos g
