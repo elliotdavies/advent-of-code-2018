@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module Day15.Day15 where
 
 import Data.List.Index (ifoldl)
@@ -155,13 +157,17 @@ runRound g
             Nothing -> g
             Just moveTarget ->
               let (pos', g') = move g unit moveTarget
-                  adj = adjacentSquares g' pos'
+                  adj = freeAdjacentSquares g' pos'
                   maybeAttackTarget = findAttackTarget u adj
               in  case maybeAttackTarget of
                     Nothing -> g'
-                    Just attackTarget ->
+                    Just attackTarget -> undefined
 
 
-move :: Grid -> (Pos, Object) -> Route -> Grid
+findAttackTarget :: Unit -> [Pos] -> Maybe (Pos, Unit)
+findAttackTarget = undefined
+
+
+move :: Grid -> (Pos, Object) -> Route -> (Pos, Grid)
 move g (pos, obj) (r:rs)
   = (r,) $ M.insert r obj $ M.delete pos g

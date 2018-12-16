@@ -41,6 +41,7 @@ library
       Day12.Day12
       Day13.Day13
       Day15.Day15
+      Day16.Day16
   other-modules:
       Paths_aoc2018
   hs-source-dirs:
