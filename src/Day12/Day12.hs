@@ -1,116 +1,50 @@
 module Day12.Day12 where
 
-import qualified Data.Vector as V
+import           Data.List.Index (indexed)
+import qualified Data.IntSet as S
 
 
-data Rule = String :=> Char
-  deriving (Show)
+type State = S.IntSet
+type Rule = [Bool]
 
 
-parseRule :: String -> Rule
-parseRule s = let [a,_,b:_] = words s in a :=> b
+hash :: Char -> Bool
+hash = (=='#')
 
 
-rules :: [Rule]
-rules
-  = parseRule <$>
-    [ "..... => ."
-    , "#.... => ."
-    , "..### => ."
-    , "##..# => #"
-    , ".###. => #"
-    , "...## => ."
-    , "#.#.. => ."
-    , "..##. => ."
-    , "##.#. => #"
-    , "..#.. => ."
-    , ".#... => #"
-    , "##.## => ."
-    , "....# => ."
-    , ".#.#. => ."
-    , "#..#. => #"
-    , "#.### => ."
-    , ".##.# => #"
-    , ".#### => ."
-    , ".#..# => ."
-    , "####. => #"
-    , "#...# => #"
-    , ".#.## => #"
-    , "#..## => ."
-    , "..#.# => #"
-    , "#.##. => ."
-    , "###.. => ."
-    , "##### => #"
-    , "###.# => #"
-    , "...#. => #"
-    , "#.#.# => #"
-    , ".##.. => ."
-    , "##... => #"
-    ]
-
-
-extraBefore = 5
-extraAfter = 25
-
-input = "#.......##.###.#.#..##..##..#.#.###..###..##.#.#..##....#####..##.#.....########....#....##.#..##"
-
-initialState
-  = pad extraBefore V.++ V.fromList input V.++ pad extraAfter
-
-
-getWindow :: Int -> V.Vector Char -> V.Vector Char
-getWindow i v
-  | i < 2
-      = let diff = (2 - i)
-        in  pad diff V.++ V.slice i (5 - diff) v
-  | end > lastIdx
-      = let diff = end - lastIdx
-        in  V.slice start (5 - diff) v V.++ pad diff 
-  | otherwise
-      = V.slice start 5 v
+getInput :: IO (State, [Rule])
+getInput = do
+  (stateInput:_:rulesInput) <- lines <$> readFile "input.txt"
+  let state = parseState . head . drop 2 . words $ stateInput
+      rules = map parseRule . filter (hash . last) $ rulesInput
+  pure (state, rules)
   where
-    lastIdx = V.length v - 1
-    start   = i - 2
-    end     = i + 2
+    parseState = S.fromList . map fst . filter (hash . snd) . indexed
+
+    parseRule = map hash . head . words
 
 
-pad :: Int -> V.Vector Char
-pad n = V.replicate n '.'
-
-
-
-applyRules :: V.Vector Char -> V.Vector Char
-applyRules v
-  = V.imap (\i _ -> applyRule . V.toList $ getWindow i v) v
+stepGen :: [Rule] -> State -> State
+stepGen rules state
+  = let min = S.findMin state - 2
+        max = S.findMax state + 2
+    in  foldl step S.empty $ [min..max]
   where
-    applyRule window = foldr step '.' rules
-      where
-        step (r :=> res) c = if r == window then res else c
+    step acc i
+      = if any (== getSequence i) rules then S.insert i acc else acc
 
+    getSequence i
+      = map (flip S.member $ state) [i-2 .. i+2]
 
 
 solution1 :: IO ()
 solution1 = do
-  --let res = foldr go initialState [1..20]
-
-  putStrLn $ fmt 0 ++ " " ++ show initialState
-  
-  finalState <- foldl go (pure initialState) [1..20]
-  let total = V.sum $ V.imap (\i c -> if c == '#' then i - extraBefore else 0) finalState
-  putStrLn $ "Sum: " ++ show total
-  pure mempty
-
+  (state, rules) <- getInput
+  putStrLn . show . sumState . (!! 20) $ iterate (stepGen rules) state
   where
-    go state i = do
-      s <- state
-      let s' = applyRules s
-      putStrLn $ fmt i ++ " " ++ show s'
-      pure s'
-    
-    fmt i = if i < 10 then " " ++ show i else show i
+    sumState = S.foldr (+) 0
 
 
-
-
-
-
+solution2 :: IO ()
+solution2 = do
+  putStrLn "?"

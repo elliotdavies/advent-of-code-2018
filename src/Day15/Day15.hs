@@ -5,7 +5,7 @@ module Day15.Day15 where
 import Data.List.Index (ifoldl)
 import Data.List (sortOn)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, isNothing)
+import Data.Maybe (catMaybes, fromJust, isJust, isNothing)
 import qualified Data.Set as S
 import qualified Data.Tree as T
 import Linear (V2(..))
@@ -25,7 +25,7 @@ instance Ord Pos where
 data UnitType
   = Elf
   | Goblin
-  deriving (Show)
+  deriving (Eq, Show)
 
 newtype AP
   = AP Int
@@ -154,20 +154,52 @@ runRound g
               $ M.filter isUnit g
 
         in case maybeTarget of
-            Nothing -> g
+            Nothing -> go g units
             Just moveTarget ->
               let (pos', g') = move g unit moveTarget
                   adj = freeAdjacentSquares g' pos'
-                  maybeAttackTarget = findAttackTarget u adj
+                  maybeAttackTarget = findAttackTarget g' u adj
               in  case maybeAttackTarget of
-                    Nothing -> g'
-                    Just attackTarget -> undefined
+                    Nothing -> go g' units
+                    Just attackTarget ->
+                      let g'' = attack g' u attackTarget
+                      in  go g'' units
 
 
-findAttackTarget :: Unit -> [Pos] -> Maybe (Pos, Unit)
-findAttackTarget = undefined
+findAttackTarget :: Grid -> Unit -> [Pos] -> Maybe (Pos, Unit)
+findAttackTarget g (Unit ty _ _) ps
+  = let options
+          = filter isEnemy
+          $ map (\(p, j) -> (p, fromJust j))
+          $ filter (isJust . snd)
+          $ sortOn fst
+          $ map (\p -> (p, M.lookup p g)) ps
+    
+    in  if null options
+          then Nothing
+          else  let (p, OUnit u) = head options
+                in  Just (p, u)
+  where
+    isEnemy (_, OUnit (Unit ty' _ _)) = ty /= ty'
+    isEnemy _                         = False
 
 
 move :: Grid -> (Pos, Object) -> Route -> (Pos, Grid)
 move g (pos, obj) (r:rs)
   = (r,) $ M.insert r obj $ M.delete pos g
+
+
+attack :: Grid -> Unit -> (Pos, Unit) -> Grid
+attack g u (pos, target)
+  = case attack' u target of
+      Just target' ->
+        M.insert pos (OUnit target') $ M.delete pos g
+
+      Nothing ->
+        M.delete pos g
+  where
+    attack' (Unit _ (AP ap) _) (Unit ty ap' (HP hp))
+      = let hp' = hp - ap
+        in  if hp' <= 0 then Nothing else Just (Unit ty ap' (HP hp'))
+
+
