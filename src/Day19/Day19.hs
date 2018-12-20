@@ -78,8 +78,39 @@ solution1 = do
   print $ rs M.! 0
 
 
--- solution2 :: IO ()
--- solution2 = do
---   (state, instrs) <- getInput $ M.insert 0 1 initRegisters
---   let State _ _ rs = runProgram instrs state
---   print $ rs M.! 0
+solution2 :: IO ()
+solution2 = do
+  (state, instrs) <- getInput $ M.insert 0 1 initRegisters
+  go instrs state
+  -- print $ rs M.! 0
+  where
+    go :: Instructions -> State -> IO ()
+    go instrs state@(State _ ipVal _) =
+      case instrs V.!? ipVal of
+        Just instr -> do
+          putStrLn "-------------"
+          putStrLn $ "Instr: " ++ show instr
+          putStrLn $ "State:  " ++ show state
+
+          let state' = optimise instr state
+
+          -- let state' = execute instr state
+          putStrLn $ "State': " ++ show state'
+
+          go instrs state'
+        
+        Nothing -> pure mempty
+
+
+optimise :: Instruction -> State -> State
+optimise instr state@(State ipIdx ipVal rs)
+  = case (instr, ipVal) of
+      (Instruction MulR 5 2 4, 3) ->
+        State ipIdx 3 (M.adjust (+1) 2 rs)
+
+      _ -> execute instr state
+
+
+-- Loops from (set 2 6 1) at idx 11 to (mulr 5 2 4) at idx 3
+-- at same time reg #1 is reset from 10 to 2
+-- during loop, (addi 2 1 2) causes reg #2 to increment
