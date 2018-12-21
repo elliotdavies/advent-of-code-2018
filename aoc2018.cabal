@@ -44,6 +44,7 @@ library
       Day16.Day16
       Day18.Day18
       Day19.Day19
+      Day20.Day20
       Day21.Day21
   other-modules:
       Paths_aoc2018
@@ -56,6 +57,7 @@ library
     , vector
     , ilist
     , linear
+    , parsec
   default-language: Haskell2010
 
 executable aoc2018-exe
