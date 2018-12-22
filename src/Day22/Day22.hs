@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Day22.Day22 where
 
 import           Data.List (sort)
@@ -24,11 +26,11 @@ type Grid = M.Map Pos (Int, Int, RegionType)
 
 
 depth :: Int
-depth = 510
+depth = 11739
 
 
 target :: Pos
-target = Pos $ V2 10 10
+target = Pos $ V2 11 718
 
 
 genGrid :: Grid
@@ -67,3 +69,16 @@ erosionLevel idx = (idx + depth) `mod` 20183
 
 regionType :: Int -> RegionType
 regionType el = [Rocky ..] !! (el `mod` 3)
+
+
+solution1 :: IO ()
+solution1 = do
+  let grid = genGrid
+  print $ riskLevel grid
+  where
+    riskLevel = sum . M.elems . M.map (\(_, _, rt) -> risk rt)
+
+    risk = \case
+      Rocky   -> 0
+      Wet     -> 1
+      Narrow  -> 2
